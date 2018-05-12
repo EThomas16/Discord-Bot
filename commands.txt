@@ -1,0 +1,7 @@
+I have several commands that are currently available for use. These are:
+!list - Lists all of the available commands, just like this!
+!detectFeline - Detects cats from the provided URL.
+!request - Plays the provided youtube video URL in the current voice channel the user is in.
+!stop - Stops the bot from playing audio
+!queue - Adds a song to the queue
+Credits go to the bot author Fyrngarm#5098, and the creators of the discord.py API.
