@@ -1,2 +1,4 @@
 # Discord-Bot
-Discord bot written in Python 3 for learning purposes
+A Discord Bot written using Python 3 and the discord.py library. The current functionality of the bot is:
+- Cat detection using haar cascade classifiers from the [OpenCV repository](https://github.com/opencv/opencv/tree/master/data/haarcascades).
+- Playing of audio from YouTube videos, given to the bot through a specific command and URL.
