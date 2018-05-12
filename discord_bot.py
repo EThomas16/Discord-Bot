@@ -200,8 +200,8 @@ class Bot():
         return video_title
 
 #insert bot token and id here, must be string
-bot_token = 'MzQ0MjUzMjgyMzUwMjY4NDE3.DWXs0Q.36kCaKgOV6Ttw9c_DHZHgJq6Jvo'
-bot_id = '344253282350268417'
+bot_token = ''
+bot_id = ''
 #tries to initialise the bot
 try:
     bot = commands.Bot(command_prefix='!')
