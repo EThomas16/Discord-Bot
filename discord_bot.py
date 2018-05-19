@@ -65,18 +65,20 @@ class Bot():
             try:
                 #gets the number of cats from the first letter of the returned message
                 num_cats = cat_msg[:1]
+                print('number of cats test {}'.format(num_cats))
                 cat_check = True
 
             except ValueError:
                 print('No cats detected...')
+            # TODO: except value error to prevent error with casting to int when no cats detected
+            if num_cats == 'T':
+                # otherwise if there are no cats then the file is not reuploaded
+                await self.bot.send_message(ctx.message.channel, cat_msg)
 
-            if  int(num_cats) >= 0 and cat_check:
+            elif  int(num_cats) >= 0 and cat_check:
                 #the bot then uploads the edited file from the results folder
                 await self.bot.send_file(ctx.message.channel, 'Results/cat_image_result.jpg')
                 await self.bot.send_message(ctx.message.channel, cat_msg)
-            else:
-                #otherwise if there are no cats then the file is not reuploaded
-                await self.bot.send_message(ctx.meesage.channel, cat_msg)
 
     @commands.command(name='list', pass_context=True, no_pm=True)
     async def command_list(self, ctx, args=''):
