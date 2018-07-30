@@ -12,7 +12,7 @@ from discord.ext import commands
 import time
 import youtube_dl
 import simplejson
-from haar_classifier import HaarClassifier
+from image_processing import ImProcess
 from talking_clock  import TalkingClock
 #online information acquisition
 import lxml
@@ -28,13 +28,13 @@ class Bot():
     def __init__(self, bot):
         self.bot = bot
         #extra functionality initialised
-        self.h_class = HaarClassifier()
         self.clock = TalkingClock()
         self.song_list = []
         #used in audio management
         self.stop = False
         self.is_playing = False
         self.player = None
+        self.im_process = ImProcess()
 
     @commands.command(name='detectFeline', pass_context=True, no_pm=True)
     async def cat_detect(self, ctx, args):
@@ -42,25 +42,10 @@ class Bot():
         url = ctx.message.content
         #manipulates the string to take only the url
         url = str(url[14:])
-        #not used, check this
-        req = Request(url, headers={'User-Agent': 'Magic Browser'})
-        valid_url = False
-        try:
-            #tries to retrieve the url
-            urlretrieve(url, 'Source_Images/cat_image.jpg')
-            valid_url = True
-
-        except FileNotFoundError as err:
-            #if the file is not found then the bot states the error in the current channel
-            await self.bot.send_message(ctx.message.channel, 'There is an error on my end, please wait...')
-
-        except HTTPError as err:
-            #or if the url given is invalid or is blocked then a separate error is given
-            await self.bot.send_message(ctx.message.channel, 'URL not accepted, cats cannot be found. Abort!')
-
+        valid_url = await self.scrape_image(url, ctx, method="cat")
         if valid_url:
             #if the url is valid then the haar classifier is used
-            cat_msg = self.h_class.cat_detect()
+            cat_msg = self.im_process.cat_detect()
             cat_check = False
             try:
                 #gets the number of cats from the first letter of the returned message
@@ -79,6 +64,38 @@ class Bot():
                 #the bot then uploads the edited file from the results folder
                 await self.bot.send_file(ctx.message.channel, 'Results/cat_image_result.jpg')
                 await self.bot.send_message(ctx.message.channel, cat_msg)
+
+    @commands.command(name='recogniseText', pass_context=True, no_pm=True)
+    async def recognise_text(self, ctx, args):
+        """Recognises text from a given image using google's tesseract"""
+        url = ctx.message.content
+        url = str(url[15:])
+        valid_url = await self.scrape_image(url, ctx, method="text")
+        if valid_url:
+            text = self.im_process.tesseract_process()
+            await self.bot.send_message(ctx.message.channel, "I think this image says...\n```{}```".format(text))
+
+    async def scrape_image(self, url, ctx, method=""):
+        #TODO: not used, check this
+        req = Request(url, headers={'User-Agent': 'Magic Browser'})
+        valid_url = False
+        try:
+            if method == "cat":
+                #tries to retrieve the url
+                urlretrieve(url, 'Source_Images/cat_image.jpg')
+            elif method == "text":
+                urlretrieve(url, 'Source_Images/tesseract_input.jpg')
+            valid_url = True
+
+        except FileNotFoundError as err:
+            #if the file is not found then the bot states the error in the current channel
+            await self.bot.send_message(ctx.message.channel, 'There is an error on my end, please wait...')
+
+        except HTTPError as err:
+            #or if the url given is invalid or is blocked then a separate error is given
+            await self.bot.send_message(ctx.message.channel, 'URL not accepted, please try using a url that ends in .jpg or .png')
+
+        return valid_url
 
     @commands.command(name='list', pass_context=True, no_pm=True)
     async def command_list(self, ctx, args=''):
