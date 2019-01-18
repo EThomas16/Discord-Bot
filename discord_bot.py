@@ -35,7 +35,7 @@ class Bot():
         with open(key_store_path, 'r') as key_file:
             keys = key_file.readlines()
             for idx, key in enumerate(keys):
-                keys[idx] = key.split(":")[1]
+                keys[idx] = key.split(":")[1].strip()
 
         self.bot_token = keys[0]
         self.bot_id = keys[1]
@@ -60,6 +60,7 @@ class Bot():
             print(f"Exception setting the bot {err}")
         @self.bot.event
         async def on_ready():
+            await self.bot.change_presence(game=discord.Game(name="with Cookies", type=1))
             print(f"Logged in as\n{self.bot.user.name}\n{self.bot.user.id}\n------------")
         
     def init_audio(self):
@@ -80,8 +81,48 @@ class Bot():
     pass_context -- allows for original message to be passed as a parameter (default True)
     no_pm -- source of message from channel or private message (default True)
     """
+    @commands.has_role("Admin")
+    @commands.command(name='clear', pass_context=True, no_pm=True)
+    async def clear_messages(self, ctx, args=''):
+        messages = []
+        limit = ctx.message.content.split(" ")[1].strip()
+        if limit.lower() is "none":
+            limit = None
+        elif limit.isdigit():
+            limit = int(limit)
+        else:
+            print("incorrect argument for clearing")
+            await self.bot.say("```Invalid argument for clearing messages, please use:\n- none\n- a positive integer value```")
+            return
+        
+        async for message in self.bot.logs_from(ctx.message.channel, limit=limit):
+            messages.append(message)
+
+        if len(messages) == 1:
+            await self.bot.delete_message(messages[0])
+            return
+        await self.bot.delete_messages(messages)
+
+    @commands.command(name='list_commands', pass_context=True, no_pm=True)
+    async def command_list(self, ctx, args=''):
+        """
+        Prints the list of commands for the bot from a .txt file
+        """
+        with open(file='commands.txt') as commands:
+            command_list = commands.readlines()
+            commands.close()
+        await self.bot.say(''.join(command_list))
+
+    @commands.command(name='test', pass_context=True, no_pm=True)
+    async def test(self, ctx, args=''):
+        """
+        A test method for ensuring the bot's functionality
+        """
+        message = ctx.message.content
+        print(message)
+        await self.bot.say(f"you just said {message}")
     
-    @commands.command(name='detect_feline', pass_context=True, no_pm=True)
+    @commands.command(aliases=['detect_feline', 'find_cat'], pass_context=True, no_pm=True)
     async def cat_detect(self, ctx, args):
         """
         Handles the detection of cats from images in URLs given to the bot
@@ -108,25 +149,6 @@ class Bot():
                 await self.bot.send_file(ctx.message.channel, 'Results/cat_image_result.jpg')
                 await self.bot.send_message(ctx.message.channel, f'{num_cats} cat(s) found!')
 
-    @commands.command(name='list', pass_context=True, no_pm=True)
-    async def command_list(self, ctx, args=''):
-        """
-        Prints the list of commands for the bot from a .txt file
-        """
-        with open(file='commands.txt') as commands:
-            command_list = commands.readlines()
-            commands.close()
-        await self.bot.say(''.join(command_list))
-
-    @commands.command(name='test', pass_context=True, no_pm=True)
-    async def test(self, ctx, args=''):
-        """
-        A test method for ensuring the bot's functionality
-        """
-        message = ctx.message.content
-        print(message)
-        await self.bot.say(f"you just said {message}")
-
     @commands.command(name='request', pass_context=True, no_pm=True)
     async def yt_player(self, ctx, args):
         """"
@@ -138,8 +160,10 @@ class Bot():
 
     @commands.command(name='stop', pass_context=True, no_pm=True)
     async def audio_stop(self):
-        """stops the audio from playing,
-        must be a method as it is a command that needs to overwrite play_audio"""
+        """
+        Stops the audio from playing,
+        must be a method as it is a command that needs to overwrite play_audio
+        """
         self.audio.stop = True
 
     @commands.command(name='queue', pass_context=True, no_pm=True)
@@ -272,7 +296,7 @@ class Audio():
             self.is_playing = True
             while self.is_playing:
                 while not self.player.is_done():
-                    self.check_player_status(voice)
+                    await self.check_player_status(voice)
                 self.song_list.pop(0)
                 await asyncio.sleep(3)
                 if len(self.song_list) > 0:
@@ -313,7 +337,7 @@ class Audio():
 
 # TODO: remove this information when uploading to GitHub
 if __name__ == "__main__":
-    key_store_path = "E:/Programming/LocalStorage/discord_bot_keys.txt"
+    key_store_path = "H:/Programming/LocalStorage/discord_bot_keys.txt"
     bot = Bot(key_store_path)
     bot.setup_bot()
     bot.init_audio()
