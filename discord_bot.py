@@ -13,23 +13,24 @@ TODO:
 """
 import time
 
-import discord
 import asyncio
 from discord.ext.commands import Bot
 from discord.ext import commands
+from discord import Game, opus
 import youtube_dl
 import simplejson
-from haar_classifier import cat_detect
-from reddit_requests import RedditBot
 import lxml
 from lxml import etree
 from urllib.request import urlretrieve, Request, urlopen
 from urllib.error import HTTPError
 
+from reddit_requests import RedditBot
+from image_processing import ImageProcess
+
 class Bot():
     def __init__(self, key_store_path: str):
-        if not discord.opus.is_loaded():
-            discord.opus.load_opus()
+        if not opus.is_loaded():
+            opus.load_opus()
 
         keys = []
         with open(key_store_path, 'r') as key_file:
@@ -44,8 +45,8 @@ class Bot():
         self.stop = False
         self.is_playing = False
         self.player = None
-        # TODO: remove this information when uploading to GitHub
-        # can change this information to a new user application
+        
+        self.image_processing = ImageProcess()
         self.reddit = RedditBot(id=keys[2],
                                 secret=keys[3],
                                 user=keys[4],
@@ -53,6 +54,9 @@ class Bot():
                                 agent=keys[6])
 
     def setup_bot(self):
+        """
+        Initialises the bot and sets its presence message
+        """
         try:
             self.bot = commands.Bot(command_prefix='!')
             self.bot.add_cog(self)
@@ -60,13 +64,20 @@ class Bot():
             print(f"Exception setting the bot {err}")
         @self.bot.event
         async def on_ready():
-            await self.bot.change_presence(game=discord.Game(name="with Cookies", type=1))
+            # required the type argument of 1 to make the presence visible
+            await self.bot.change_presence(game=Game(name="with Cookies", type=1))
             print(f"Logged in as\n{self.bot.user.name}\n{self.bot.user.id}\n------------")
         
     def init_audio(self):
+        """
+        Used to set up the audio player for the bot, if required
+        """
         self.audio = Audio(self.bot)
 
     def run(self):
+        """
+        Uses the bot token provided from the file to run the bot
+        """
         self.bot.run(self.bot_token)
 
     """ 
@@ -84,15 +95,20 @@ class Bot():
     @commands.has_role("Admin")
     @commands.command(name='clear', pass_context=True, no_pm=True)
     async def clear_messages(self, ctx, args=''):
+        """
+        Removes a set number of messages from a channel based on the command structure:
+        clear {number of messages to clear}
+        if the number is instead all the entire channel is cleared
+        this command is limited to the specified role only (default: Admin)
+        """
         messages = []
         limit = ctx.message.content.split(" ")[1].strip()
-        if limit.lower() is "none":
+        if limit.lower() is "all":
             limit = None
         elif limit.isdigit():
             limit = int(limit)
         else:
-            print("incorrect argument for clearing")
-            await self.bot.say("```Invalid argument for clearing messages, please use:\n- none\n- a positive integer value```")
+            await self.bot.say("```Invalid argument for clearing messages, please use:\n- all\n- a positive integer value```")
             return
         
         async for message in self.bot.logs_from(ctx.message.channel, limit=limit):
@@ -122,32 +138,41 @@ class Bot():
         print(message)
         await self.bot.say(f"you just said {message}")
     
+    @commands.command(name='tesseract', pass_context=True, no_pm=True)
+    async def call_tesseract(self, ctx, args=''):
+        """
+        Runs tesseract OCR on an image provided through a URL
+        """
+        image, error_message = ImageProcess.scrape_image(ctx.message.content.split(" ")[1])
+        # will meet the condition if the error_message string is not empty
+        if error_message:
+            await self.bot.say(error_message)
+            return
+
+        text_from_image = self.image_processing.tesseract_process(image)
+        bot_message = f"Text found in image: {text_from_image}"
+        if not text_from_image:
+            bot_message = "No text found in image"
+        
+        await self.bot.say(bot_message)
+        
     @commands.command(aliases=['detect_feline', 'find_cat'], pass_context=True, no_pm=True)
     async def cat_detect(self, ctx, args):
         """
         Handles the detection of cats from images in URLs given to the bot
         """
-        url = ctx.message.content
-        url = url.split(" ")[2]
-        valid_url = False
-        try:
-            urlretrieve(url, 'Source_Images/cat_image.jpg')
-            valid_url = True
+        image, error_message = ImageProcess.scrape_image(ctx.message.content.split(" ")[2])
+        # will meet the condition if the error_message string is not empty
+        if error_message:
+            await self.bot.say(error_message)
+            return
 
-        except FileNotFoundError:
-            await self.bot.send_message(ctx.message.channel, 'There is an error on my end, please wait...')
-
-        except HTTPError:
-            await self.bot.send_message(ctx.message.channel, 'URL not accepted, cats cannot be found. Abort!')
-
-        if valid_url:
-            num_cats = cat_detect()
-            if num_cats == 0:
-                await self.bot.send_message(ctx.message.channel, 'There are no cats present, please try again')
-
-            else:
-                await self.bot.send_file(ctx.message.channel, 'Results/cat_image_result.jpg')
-                await self.bot.send_message(ctx.message.channel, f'{num_cats} cat(s) found!')
+        num_cats = self.image_processing.detect_cat(image)
+        if num_cats == 0:
+            await self.bot.send_message(ctx.message.channel, 'There are no cats present, please try again')
+        else:
+            await self.bot.send_file(ctx.message.channel, 'Results/cat_image_result.jpg')
+            await self.bot.send_message(ctx.message.channel, f'{num_cats} cat(s) found!')
 
     @commands.command(name='request', pass_context=True, no_pm=True)
     async def yt_player(self, ctx, args):
@@ -168,7 +193,9 @@ class Bot():
 
     @commands.command(name='queue', pass_context=True, no_pm=True)
     async def audio_queue(self, ctx, args=''):
-        """adds a song to the queue using the !queue command"""
+        """
+        Adds a song to the queue using the !queue command
+        """
         song_url = ctx.message.content.split(" ")[1]
         # appends the song to the list attribute for use in play_audio
         self.audio.song_list.append(song_url)
@@ -294,11 +321,14 @@ class Audio():
             voice = await self.bot.join_voice_channel(channel)
             await self.create_player(song_url, voice)
             self.is_playing = True
+
             while self.is_playing:
                 while not self.player.is_done():
                     await self.check_player_status(voice)
                 self.song_list.pop(0)
+
                 await asyncio.sleep(3)
+
                 if len(self.song_list) > 0:
                     self.initialise_song(voice)
                 else:
@@ -329,13 +359,18 @@ class Audio():
                 self.song_list.pop(idx)
     
     async def check_player_status(self, voice):
+        """
+        Checks the current status of the audio player to see if it should stop
+
+        Keyword arguments:
+        voice -- the current voice channel the bot is in
+        """
         if not self.stop:
             await asyncio.sleep(self.SLEEP_TIME)
         else:
             await voice.disconnect()
             self.is_playing = False
 
-# TODO: remove this information when uploading to GitHub
 if __name__ == "__main__":
     key_store_path = "H:/Programming/LocalStorage/discord_bot_keys.txt"
     bot = Bot(key_store_path)
