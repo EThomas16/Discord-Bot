@@ -16,7 +16,7 @@ import time
 import asyncio
 from discord.ext.commands import Bot
 from discord.ext import commands
-from discord import Game, opus
+from discord import Game, opus, utils
 import youtube_dl
 import simplejson
 import lxml
@@ -24,6 +24,7 @@ from lxml import etree
 from urllib.request import urlretrieve, Request, urlopen
 from urllib.error import HTTPError
 
+import utils
 from reddit_requests import RedditBot
 from image_processing import ImageProcess
 
@@ -45,6 +46,8 @@ class Bot():
         self.stop = False
         self.is_playing = False
         self.player = None
+
+        self.admin_roles = ["Butcher of Reports", "Admin"]
         
         self.image_processing = ImageProcess()
         self.reddit = RedditBot(id=keys[2],
@@ -126,9 +129,51 @@ class Bot():
         """
         with open(file='commands.txt') as commands:
             command_list = commands.readlines()
-            commands.close()
         await self.bot.say(''.join(command_list))
 
+    @commands.command(name="todo", pass_context=True, no_pm=True)
+    async def add_to_todo(self, ctx, args=''):
+        split_message = ctx.message.content.split(" ")
+        split_message = ' '.join(split_message[1:])
+        
+        if split_message == "show":
+            with open('todo.txt', 'r') as todo:
+                todo_list = todo.readlines()
+            await self.bot.say(f"This is the list of requested features:\n```{''.join(todo_list)}```")
+            return
+
+        if split_message == "clear":
+            if True in utils.check_roles(self.admin_roles, ctx.message.author):
+                utils.clear_file("todo.txt")
+                await self.bot.say("The administrator has successfully cleared the list")
+                return
+
+            await self.bot.say("You do not have the permission to clear this list.")
+            return
+
+        user = ctx.message.author
+        with open('todo.txt', 'a') as todo:
+            todo.write(f"{user} -- {split_message}\n")
+        await self.bot.say("Thanks for requesting a new feature for me! It will be assessed in due course, please be patient.")
+
+    @commands.command(name='time_to_die', pass_context=True, no_pm=True)
+    async def bready_to_die(self, ctx, args=''):
+        await self.bot.send_file(ctx.message.channel, 'Source_Images/bread.jpg')
+
+    @commands.command(name='spongify', pass_context=True, no_pm=True)
+    async def spongify(self, ctx, args=''):
+        split_message = ctx.message.content.split(" ")[1:]
+        phrase = []
+        for word in split_message:
+            word = word.lower()
+            for idx, letter in enumerate(word):
+                if (idx % 2) == 0:
+                    letter = letter.upper()
+                phrase.append(letter)
+            phrase.append(" ")
+        await self.bot.say(''.join(phrase))
+
+    @commands.has_role("Admin")
     @commands.command(name='test', pass_context=True, no_pm=True)
     async def test(self, ctx, args=''):
         """
