@@ -1,7 +1,12 @@
+```
 I have several commands that are currently available for use. These are:
-!list - Lists all of the available commands, just like this!
-!detect_feline - Detects cats from the provided URL.
+!list_commands - Lists all of the available commands, just like this!
+!todo - if you want to request a new feature, please use this command! The author will assess the feasibility and add it if appropriate.
+!detect_feline, find_cat - Detects cats from the provided URL.
+!tesseract - uses google's OCR model to recognise text in a provided image URL.
+!spongify - alters the given text to become as such: input text -> InPuT tExT
 !request - Plays the provided youtube video URL in the current voice channel the user is in.
-!stop - Stops the bot from playing audio
-!queue - Adds a song to the queue
+!stop - Stops the bot from playing audio.
+!queue - Adds a song to the queue.
 Credits go to the bot author Fyrngarm#5098, and the creators of the discord.py API.
+```
