@@ -8,5 +8,7 @@ I have several commands that are currently available for use. These are:
 !request - Plays the provided youtube video URL in the current voice channel the user is in.
 !stop - Stops the bot from playing audio.
 !queue - Adds a song to the queue.
+!image - can request a specific image stored by the bot. Use !image show to show a list of all images available.
+!add_image - adds an image from the provided URL. The command is in the format URL image_name
 Credits go to the bot author Fyrngarm#5098, and the creators of the discord.py API.
 ```

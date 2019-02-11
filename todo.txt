@@ -1,3 +1,4 @@
-Realworthy#8317 -- Preach the word of Pierre
-wifiguy#6969 -- add it so if list is empty then dont show the list
-Realworthy#8317 -- Become sentient
+Realworthy#8317 -- report new features when implemented: DONE
+wifiguy#6969 -- monthly changelog - add a monthly changelog to demo individual features
+wifiguy#6969 -- you could also get the bot to delete the message after its spongified: DONE
+Fyrngarm#5098 -- add new picture - webscrape the provided URL and save the image, adding it to the dictionary: DONE
