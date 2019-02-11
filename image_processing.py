@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 import pytesseract
 import os
+import requests
 from PIL import Image
 from urllib.request import urlretrieve, Request, urlopen
 from urllib.error import HTTPError
@@ -61,7 +62,7 @@ class ImageProcess():
         return text
 
     @staticmethod
-    def scrape_image(url: str) -> list:
+    def scrape_image(url: str, optional_name: str = "") -> list:
         """
         Scrapes an image from the provided url
 
@@ -72,6 +73,11 @@ class ImageProcess():
         image -- image object that has been acquired from the URL
         error_message -- if an error occurred the message for the bot to say is passed in this string
         """
+        if ''.join(url.split(".")[-1:]) == "gif" and optional_name:
+            with open(f"Other_Images/{optional_name}.gif", "wb") as gif_file:
+                gif_file.write(requests.get(url).content)
+            return
+
         error_message = ""
         image = []
         try:
