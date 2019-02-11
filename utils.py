@@ -1,4 +1,5 @@
 from discord import utils
+from PIL import Image
 
 def check_roles(roles: list, author: object) -> list:
     role_checks = []
@@ -13,3 +14,7 @@ def check_roles(roles: list, author: object) -> list:
 def clear_file(file_path: str):
     file_to_clear = open(file_path, 'w')
     file_to_clear.close()
+
+def make_gif(file_path: str):
+    sequence = []
+    image = Image.open(file_path)
