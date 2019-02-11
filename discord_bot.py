@@ -12,7 +12,10 @@ TODO:
             Query google maps API with a specific address and return the URL for its location to the channel
 """
 import time
+import os
 
+import cv2
+from PIL import Image
 import asyncio
 from discord.ext.commands import Bot
 from discord.ext import commands
@@ -48,6 +51,8 @@ class Bot():
         self.player = None
 
         self.admin_roles = ["Butcher of Reports", "Admin"]
+        self.image_store_path = "Other_Images"
+        self.images = Images(self.image_store_path)
         
         self.image_processing = ImageProcess()
         self.reddit = RedditBot(id=keys[2],
@@ -131,6 +136,19 @@ class Bot():
             command_list = commands.readlines()
         await self.bot.say(''.join(command_list))
 
+    @commands.command(name='admin_roles', pass_context=True, no_pm=True)
+    async def admin_list(self, ctx, args=''):
+        message = '\n'.join(self.admin_roles)
+        await self.bot.say(f"Current admin roles being tracked are: ```{message}```")
+
+    @commands.command(name='add_admin_role', pass_context=True, no_pm=True)
+    async def set_admin(self, ctx, args=''):
+        if True in utils.check_roles(self.admin_roles, ctx.message.author):
+            self.admin_roles.append(' '.join(ctx.message.content.split(" ")[1:]))
+            await self.bot.say("Successfully added a new administrator role")
+        else:
+            await self.bot.say("You do not have rights to set administrator roles")
+
     @commands.command(name="todo", pass_context=True, no_pm=True)
     async def add_to_todo(self, ctx, args=''):
         split_message = ctx.message.content.split(" ")
@@ -139,7 +157,12 @@ class Bot():
         if split_message == "show":
             with open('todo.txt', 'r') as todo:
                 todo_list = todo.readlines()
-            await self.bot.say(f"This is the list of requested features:\n```{''.join(todo_list)}```")
+            if len(todo_list) == 0:
+                message_to_say = "No features requested yet."
+            else:
+                message_to_say = f"This is the list of requested features:\n```{''.join(todo_list)}```"
+
+            await self.bot.say(message_to_say)
             return
 
         if split_message == "clear":
@@ -151,14 +174,69 @@ class Bot():
             await self.bot.say("You do not have the permission to clear this list.")
             return
 
+        if len(split_message) < 25:
+            await self.bot.say("Request not detailed enough. Please write a request in the format:\nRequest title - details of request.")
+            return
+
         user = ctx.message.author
         with open('todo.txt', 'a') as todo:
             todo.write(f"{user} -- {split_message}\n")
         await self.bot.say("Thanks for requesting a new feature for me! It will be assessed in due course, please be patient.")
 
-    @commands.command(name='time_to_die', pass_context=True, no_pm=True)
-    async def bready_to_die(self, ctx, args=''):
-        await self.bot.send_file(ctx.message.channel, 'Source_Images/bread.jpg')
+    @commands.command(name='image', pass_context=True, no_pm=True)
+    async def send_image(self, ctx, args=''):
+        if ctx.message.content.split(" ")[1] == "show":
+            message = "The following images are what I have stored.```"
+            for key in self.images.image_dict:
+                message += f"\n{key}"
+            message += "```"
+            await self.bot.say(message)
+            await self.bot.delete_message(ctx.message)
+            return
+
+        await self.bot.send_file(ctx.message.channel, self.images.image_dict[ctx.message.content.split(" ")[1]])
+        await self.bot.delete_message(ctx.message)
+
+    @commands.command(name='add_image', pass_context=True, no_pm=True)
+    async def add_image(self, ctx, args=''):
+        if len(self.images.image_dict) > 25:
+            await self.bot.say("I have too many images stored, please request the folder to be cleared before any more are added!")
+
+        if ''.join(ctx.message.content.split(" ")[1].split(".")[-1:]) == "gif":
+            ImageProcess.scrape_image(ctx.message.content.split(" ")[1], '_'.join(ctx.message.content.split(' ')[2:]))
+            await self.bot.say("A fine addition to my collection!")
+            await self.bot.delete_message(ctx.message)
+            self.images = Images(self.image_store_path)
+            return
+
+        image, error_message = ImageProcess.scrape_image(ctx.message.content.split(" ")[1])
+
+        if error_message:
+            await self.bot.say(error_message)
+            return
+
+        cv2.imwrite(f"Other_images/{'_'.join(ctx.message.content.split(' ')[2:])}.png", image)
+        self.images = Images(self.image_store_path)
+        await self.bot.say("A fine addition to my collection!")
+        await self.bot.delete_message(ctx.message)
+
+    @commands.command(name='remove_image', pass_context=True, no_pm=True)
+    async def remove_image(self, ctx, args=''):
+        if True not in utils.check_roles(self.admin_roles, ctx.message.author):
+            await self.bot.say("You do not have permission to do that.")
+            await self.bot.delete_message(ctx.message)
+            return
+
+        for ext in ['.jpg', '.png', '.gif']:
+            try:
+                os.remove(f"{self.image_store_path}/{' '.join(ctx.message.content.split(' ')[1:])}{ext}")
+                await self.bot.say("Image successfully removed.")
+                await self.bot.delete_message(ctx.message)
+                self.images = Images(self.image_store_path)
+                return
+            except:
+                print("Couldn't find extension")
+                pass
 
     @commands.command(name='spongify', pass_context=True, no_pm=True)
     async def spongify(self, ctx, args=''):
@@ -171,6 +249,8 @@ class Bot():
                     letter = letter.upper()
                 phrase.append(letter)
             phrase.append(" ")
+
+        await self.bot.delete_message(ctx.message)
         await self.bot.say(''.join(phrase))
 
     @commands.has_role("Admin")
@@ -206,7 +286,7 @@ class Bot():
         """
         Handles the detection of cats from images in URLs given to the bot
         """
-        image, error_message = ImageProcess.scrape_image(ctx.message.content.split(" ")[2])
+        image, error_message = ImageProcess.scrape_image(ctx.message.content.split(" ")[1])
         # will meet the condition if the error_message string is not empty
         if error_message:
             await self.bot.say(error_message)
@@ -416,6 +496,13 @@ class Audio():
             await voice.disconnect()
             self.is_playing = False
 
+class Images():
+    def __init__(self, source_folder):
+        self.image_dict = {}
+        for root, subdirs, files in os.walk(source_folder):
+            for name in files:
+                self.image_dict[name.split('.')[0]] = os.path.join(root, name)
+        
 if __name__ == "__main__":
     key_store_path = "H:/Programming/LocalStorage/discord_bot_keys.txt"
     bot = Bot(key_store_path)
